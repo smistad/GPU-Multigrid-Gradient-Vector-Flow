@@ -291,3 +291,16 @@ __kernel void init3DFloat(
     write_imagef(v, pos, 0.0f);
 }
 
+__kernel void createVectorField(
+        __read_only image3d_t volume,
+        __write_only image3d_t vectorField
+        ) {
+    const int4 pos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
+    float4 gradient;
+    gradient.x = 0.5f*(read_imagef(volume, sampler, pos+(int4)(1,0,0,0)).x - read_imagef(volume, sampler, pos-(int4)(1,0,0,0)).x);
+    gradient.y = 0.5f*(read_imagef(volume, sampler, pos+(int4)(0,1,0,0)).x - read_imagef(volume, sampler, pos-(int4)(0,1,0,0)).x);
+    gradient.z = 0.5f*(read_imagef(volume, sampler, pos+(int4)(0,0,1,0)).x - read_imagef(volume, sampler, pos-(int4)(0,0,1,0)).x);
+    gradient.w = 0;
+
+    write_imagef(vectorField, pos, gradient);
+}
