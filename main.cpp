@@ -15,6 +15,7 @@ int main(int argc, char ** argv) {
     std::cout << "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << std::endl;
     ocl.device = devices[0];
     ocl.queue = cl::CommandQueue(ocl.context, ocl.device);
+    ocl.program = buildProgramFromSource(ocl.context, "3Dkernels.cl");
 
     // Create texture on GPU and transfer
     cl::Image3D volumeGPU = cl::Image3D(
