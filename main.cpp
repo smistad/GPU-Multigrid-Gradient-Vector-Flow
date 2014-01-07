@@ -30,7 +30,15 @@ int main(int argc, char ** argv) {
     cl::Image3D vectorFieldGPU = createVectorField(ocl, volume, size);
 
     // Call the runFMGGVF method
-    cl::Image3D resultGPU = runFMGGVF(ocl,vectorFieldGPU,parameters,size);
+    cl::Image3D resultGPU = runFMGGVF(
+            ocl,
+            &vectorFieldGPU,
+            size,
+            10, // iterations
+            0.05, // mu
+            false, // no 3D write
+            true // 16bit
+    );
     
     // Transfer GVF vector field back to host
     const unsigned int totalSize = size.x*size.y*size.z;

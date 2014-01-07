@@ -1,3 +1,4 @@
+#include "gradientVectorFlow.hpp"
 using namespace cl;
 
 Image3D initSolutionToZero(OpenCL &ocl, SIPL::int3 size, int imageType, int bufferSize, bool no3Dwrite) {
@@ -724,13 +725,17 @@ Image3D fullMultigrid(
 
 }
 
-Image3D runFMGGVF(OpenCL &ocl, Image3D *vectorField, paramList &parameters, SIPL::int3 &size) {
+Image3D runFMGGVF(
+        OpenCL &ocl,
+        Image3D *vectorField,
+        SIPL::int3 &size,
+        const int GVFIterations,
+        const float MU,
+        const bool no3Dwrite,
+        const bool use16bit
+        ) {
 
-    const int GVFIterations = getParam(parameters, "gvf-iterations");
-    const bool no3Dwrite = !getParamBool(parameters, "3d_write");
-    const float MU = getParam(parameters, "gvf-mu");
     const int totalSize = size.x*size.y*size.z;
-    const bool use16bit = getParamBool(parameters, "16bit-vectors");
     int imageType, bufferTypeSize;
     if(use16bit) {
         imageType = CL_SNORM_INT16;

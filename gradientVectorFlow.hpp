@@ -1,10 +1,18 @@
 #ifndef GVF_H
 #define GVF_H
-#include "commons.hpp"
 #include "SIPL/Types.hpp"
-#include "parameters.hpp"
-using namespace cl;
+#include "OpenCLUtilities/openCLUtilities.hpp"
 
-Image3D runFMGGVF(OpenCL &ocl, Image3D *vectorField, paramList &parameters, SIPL::int3 &size);
+cl::Image3D createVectorField(OpenCL &ocl, cl::Image3D volume, SIPL::int3 &size);
+
+cl::Image3D runFMGGVF(
+        OpenCL &ocl,
+        cl::Image3D *vectorField,
+        SIPL::int3 &size,
+        const int GVFIterations,
+        const float MU,
+        const bool no3Dwrite,
+        const bool use16bit
+);
 
 #endif
