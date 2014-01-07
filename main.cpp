@@ -2,6 +2,10 @@
 #include "OpenCLUtilities/openCLUtilities.hpp"
 #include "gradientVectorFlow.hpp"
 
+#ifndef KERNELS_DIR
+#define KERNELS_DIR ""
+#endif
+
 int main(int argc, char ** argv) {
 
     // Load MHD volume specified in arguments using SIPL
@@ -15,7 +19,8 @@ int main(int argc, char ** argv) {
     std::cout << "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << std::endl;
     ocl.device = devices[0];
     ocl.queue = cl::CommandQueue(ocl.context, ocl.device);
-    ocl.program = buildProgramFromSource(ocl.context, "3Dkernels.cl");
+    std::string filename = std::string(KERNELS_DIR) + std::string("kernels.cl");
+    ocl.program = buildProgramFromSource(ocl.context, filename);
 
     // Create texture on GPU and transfer
     cl::Image3D volumeGPU = cl::Image3D(
@@ -24,7 +29,7 @@ int main(int argc, char ** argv) {
             cl::ImageFormat(CL_R, CL_FLOAT),
             size.x, size.y, size.z,
             0, 0,
-            volume->getData()
+            (float *)volume->getData()
     );
 
     // Create vector field on the GPU
