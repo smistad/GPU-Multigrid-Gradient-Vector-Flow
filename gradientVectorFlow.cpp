@@ -1007,3 +1007,24 @@ Image3D runFMGGVF(
     return finalVectorField;
 }
 
+Image3D createVectorField(OpenCL &ocl, Image3D volume, SIPL::int3 &size) {
+    Image3D result = Image3D(
+        ocl.context,
+        CL_MEM_READ_WRITE,
+        ImageFormat(CL_RGBA, CL_FLOAT),
+        size.x, size.y, size.z
+    );
+
+    Kernel kernel = Kernel(ocl.program, "createVectorField");
+    kernel.setArg(0, volume);
+    kernel.setArg(1, result);
+    ocl.queue.enqueueNDRangeKernel(
+            kernel,
+            NullRange,
+            NDRange(size.x,size.y,size.z),
+            NDRange(4,4,4)
+    );
+
+    return result;
+}
+

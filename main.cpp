@@ -27,7 +27,7 @@ int main(int argc, char ** argv) {
     );
 
     // Create vector field on the GPU
-    cl::Image3D vectorFieldGPU = createVectorField(ocl, volume, size);
+    cl::Image3D vectorFieldGPU = createVectorField(ocl, volumeGPU, size);
 
     // Call the runFMGGVF method
     cl::Image3D resultGPU = runFMGGVF(
