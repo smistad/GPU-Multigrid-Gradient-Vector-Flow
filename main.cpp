@@ -19,7 +19,7 @@ int main(int argc, char ** argv) {
     std::cout << "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << std::endl;
     ocl.device = devices[0];
     ocl.queue = cl::CommandQueue(ocl.context, ocl.device);
-    std::string filename = std::string(KERNELS_DIR) + std::string("kernels.cl");
+    std::string filename = std::string(KERNELS_DIR) + std::string("3Dkernels.cl");
     ocl.program = buildProgramFromSource(ocl.context, filename);
 
     // Create texture on GPU and transfer
@@ -43,7 +43,7 @@ int main(int argc, char ** argv) {
             10, // iterations
             0.05, // mu
             false, // no 3D write
-            true // 16bit
+            false // 16bit
     );
     
     // Transfer GVF vector field back to host
@@ -69,9 +69,9 @@ int main(int argc, char ** argv) {
 
     SIPL::float3 * data = new SIPL::float3[totalSize];
     for(int i = 0; i < totalSize; i++) {
-        data[i].x = temp[i*3];
-        data[i].y = temp[i*3+1];
-        data[i].z = temp[i*3+2];
+        data[i].x = temp[i*4];
+        data[i].y = temp[i*4+1];
+        data[i].z = temp[i*4+2];
     }
     delete[] temp;
     SIPL::Volume<SIPL::float3> * result = new SIPL::Volume<SIPL::float3>(size);

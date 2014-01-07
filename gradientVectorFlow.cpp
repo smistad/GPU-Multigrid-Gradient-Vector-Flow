@@ -956,7 +956,7 @@ Image3D runFMGGVF(
 
     }
 
-    ocl.GC.deleteMemObject(vectorField);
+    //ocl.GC.deleteMemObject(vectorField);
 
     std::cout << "fz finished" << std::endl;
 
