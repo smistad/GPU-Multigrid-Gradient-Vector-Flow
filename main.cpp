@@ -23,10 +23,11 @@
 #endif
 
 int main(int argc, char ** argv) {
+    const float mu = 0.05f;
     INIT_TIMER
 
     // Load MHD volume specified in arguments using SIPL
-    SIPL::Volume<float> * volume = new SIPL::Volume<float>(argv[1]);
+    SIPL::Volume<float> * volume = new SIPL::Volume<float>(argv[1], SIPL::IntensityTransformation(SIPL::NORMALIZED));
     SIPL::int3 size = volume->getSize();
 
     // Set up OpenCL
@@ -59,7 +60,7 @@ int main(int argc, char ** argv) {
             &vectorFieldGPU,
             size,
             10, // iterations
-            0.05, // mu
+            mu, // mu
             false, // no 3D write
             false // 16bit
     );
@@ -96,11 +97,19 @@ int main(int argc, char ** argv) {
     SIPL::Volume<SIPL::float3> * result = new SIPL::Volume<SIPL::float3>(size);
     result->setData(data);
 
+    std::cout << "Maximum magnitude of residuals was: " << calculateMaxResidual(result, volume, mu) << std::endl;
+    delete volume;
+
     // Display using OpenCL
     result->display();
     
-    // TODO: Time the application and calculate the max magnitude of residuals
-    // TODO: Create a sqrMag and display it
+    // TODO: calculate the max magnitude of residuals
+    // Create magnitude image and display it
+    SIPL::Volume<float> * magnitude = new SIPL::Volume<float>(size);
+    for(int i = 0; i < magnitude->getTotalSize(); i++)
+        magnitude->set(i, result->get(i).length());
+    magnitude->display();
+
     // TODO: create 2D version?
     // TODO: 16 bit support
     // TODO: work-group sizes

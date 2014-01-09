@@ -1,6 +1,6 @@
 #ifndef GVF_H
 #define GVF_H
-#include "SIPL/Types.hpp"
+#include "SIPL/Core.hpp"
 #include "OpenCLUtilities/openCLUtilities.hpp"
 
 cl::Image3D createVectorField(OpenCL &ocl, cl::Image3D volume, SIPL::int3 &size);
@@ -15,4 +15,8 @@ cl::Image3D runFMGGVF(
         const bool use16bit
 );
 
+
+float calculateMaxResidual(SIPL::Volume<SIPL::float3>* vectorField,
+        SIPL::Volume<float>* volume,
+        float mu);
 #endif
