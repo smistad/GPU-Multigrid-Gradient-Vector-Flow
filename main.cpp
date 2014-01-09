@@ -23,7 +23,7 @@
 #endif
 
 int main(int argc, char ** argv) {
-    const float mu = 0.05f;
+    const float mu = 0.2f;
     INIT_TIMER
 
     // Load MHD volume specified in arguments using SIPL
@@ -101,7 +101,7 @@ int main(int argc, char ** argv) {
     delete volume;
 
     // Display using OpenCL
-    result->display();
+    result->display(0.0, 0.1);
     
     // TODO: calculate the max magnitude of residuals
     // Create magnitude image and display it
