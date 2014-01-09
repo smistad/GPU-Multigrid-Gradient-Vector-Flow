@@ -5,8 +5,25 @@
 #ifndef KERNELS_DIR
 #define KERNELS_DIR ""
 #endif
+#include <chrono>
+
+#define TIMING
+
+#ifdef TIMING
+#define INIT_TIMER auto start = std::chrono::high_resolution_clock::now();
+#define START_TIMER  start = std::chrono::high_resolution_clock::now();
+#define STOP_TIMER(name)  std::cout << "RUNTIME of " << name << ": " << \
+    std::chrono::duration_cast<std::chrono::milliseconds>( \
+            std::chrono::high_resolution_clock::now()-start \
+    ).count() << " ms " << std::endl;
+#else
+#define INIT_TIMER
+#define START_TIMER
+#define STOP_TIMER(name)
+#endif
 
 int main(int argc, char ** argv) {
+    INIT_TIMER
 
     // Load MHD volume specified in arguments using SIPL
     SIPL::Volume<float> * volume = new SIPL::Volume<float>(argv[1]);
@@ -36,6 +53,7 @@ int main(int argc, char ** argv) {
     cl::Image3D vectorFieldGPU = createVectorField(ocl, volumeGPU, size);
 
     // Call the runFMGGVF method
+    START_TIMER
     cl::Image3D resultGPU = runFMGGVF(
             ocl,
             &vectorFieldGPU,
@@ -45,6 +63,7 @@ int main(int argc, char ** argv) {
             false, // no 3D write
             false // 16bit
     );
+    STOP_TIMER("FMG GVF")
     
     // Transfer GVF vector field back to host
     const unsigned int totalSize = size.x*size.y*size.z;
@@ -80,6 +99,11 @@ int main(int argc, char ** argv) {
     // Display using OpenCL
     result->display();
     
-    // Further: Time the application and calculate the max magnitude of residuals
+    // TODO: Time the application and calculate the max magnitude of residuals
+    // TODO: Create a sqrMag and display it
+    // TODO: create 2D version?
+    // TODO: 16 bit support
+    // TODO: work-group sizes
+    // TODO: no 3d write
 }
 
