@@ -9,5 +9,5 @@ include_directories(${OCL-Utilities_INCLUDE_DIRS})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++0x -O3 -DKERNELS_DIR=\\\"${PROJECT_SOURCE_DIR}/\\\"")
 
-add_executable(multigridGVF main.cpp gradientVectorFlow.cpp)
-target_link_libraries(multigridGVF SIPL OCL-Utilities)
+add_executable(GVF main.cpp gradientVectorFlow.cpp)
+target_link_libraries(GVF SIPL OCL-Utilities)
