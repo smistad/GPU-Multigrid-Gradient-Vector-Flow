@@ -23,7 +23,13 @@
 #endif
 
 int main(int argc, char ** argv) {
-    const float mu = 0.2f;
+    if(argc != 4) {
+        std::cout << "Usage: " << argv[0] << " filename.mhd mu iterations" << std::endl;
+        return 0;
+    }
+
+    const float mu = atof(argv[2]);
+    const int iterations = atoi(argv[3]);
     INIT_TIMER
 
     // Load MHD volume specified in arguments using SIPL
@@ -59,7 +65,7 @@ int main(int argc, char ** argv) {
             ocl,
             &vectorFieldGPU,
             size,
-            10, // iterations
+            iterations, // iterations
             mu, // mu
             false, // no 3D write
             false // 16bit
@@ -103,7 +109,6 @@ int main(int argc, char ** argv) {
     // Display using OpenCL
     result->display(0.0, 0.1);
     
-    // TODO: calculate the max magnitude of residuals
     // Create magnitude image and display it
     SIPL::Volume<float> * magnitude = new SIPL::Volume<float>(size);
     for(int i = 0; i < magnitude->getTotalSize(); i++)
