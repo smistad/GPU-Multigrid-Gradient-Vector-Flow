@@ -440,194 +440,6 @@ void multigridVcycle(
     gaussSeidelSmoothing(ocl,v_l,r_l,sqrMag,v2,size,mu,spacing,imageType,bufferSize,no3Dwrite);
 }
 
-/*
-Image3D runMGGVF(OpenCL &ocl, Image3D *vectorField, paramList &parameters, SIPL::int3 &size) {
-
-    const int GVFIterations = getParam(parameters, "gvf-iterations");
-    const bool no3Dwrite = !getParamBool(parameters, "3d_write");
-    const float MU = getParam(parameters, "gvf-mu");
-    const int totalSize = size.x*size.y*size.z;
-    const bool use16bit = getParamBool(parameters, "16bit-vectors");
-    int imageType;
-    if(use16bit) {
-        imageType = CL_SNORM_INT16;
-    } else {
-        imageType = CL_FLOAT;
-    }
-
-    Kernel initKernel = Kernel(ocl.program, "MGGVFInit");
-
-    int v1 = 2;
-    int v2 = 2;
-    int l_max = 6; // TODO this should be calculated
-    float spacing = 1.0f;
-
-    // create sqrMag
-    Kernel createSqrMagKernel(ocl.program, "createSqrMag");
-    Image3D sqrMag = Image3D(
-            ocl.context,
-            CL_MEM_READ_WRITE,
-            ImageFormat(CL_R, imageType),
-            size.x,
-            size.y,
-            size.z
-    );
-
-    createSqrMagKernel.setArg(0, *vectorField);
-    createSqrMagKernel.setArg(1, sqrMag);
-    ocl.queue.enqueueNDRangeKernel(
-            createSqrMagKernel,
-            NullRange,
-            NDRange(size.x,size.y,size.z),
-            NullRange
-    );
-    std::cout << "sqrMag created" << std::endl;
-
-    // create fx and rx
-    Image3D fx = Image3D(
-            ocl.context,
-            CL_MEM_READ_WRITE,
-            ImageFormat(CL_R, imageType),
-            size.x,
-            size.y,
-            size.z
-    );
-    Image3D *rx = new Image3D(
-            ocl.context,
-            CL_MEM_READ_WRITE,
-            ImageFormat(CL_R, imageType),
-            size.x,
-            size.y,
-            size.z
-    );
-    ocl.GC.addMemObject(rx);
-    initKernel.setArg(0, *vectorField);
-    initKernel.setArg(1, fx);
-    initKernel.setArg(2, *rx);
-    initKernel.setArg(3, 1);
-    ocl.queue.enqueueNDRangeKernel(
-            initKernel,
-            NullRange,
-            NDRange(size.x,size.y,size.z),
-            NullRange
-    );
-    std::cout << "fx initialized" << std::endl;
-
-    // X component
-    for(int i = 0; i < GVFIterations; i++) {
-        multigridVcycle(ocl,*rx,fx,sqrMag,0,v1,v2,l_max,MU,spacing,size,imageType);
-        ocl.queue.finish();
-    }
-    std::cout << "fx finished" << std::endl;
-
-    // delete rx
-    ocl.GC.deleteMemObject(rx);
-
-    // create fy and ry
-    Image3D fy = Image3D(
-            ocl.context,
-            CL_MEM_READ_WRITE,
-            ImageFormat(CL_R, imageType),
-            size.x,
-            size.y,
-            size.z
-    );
-    Image3D *ry = new Image3D(
-            ocl.context,
-            CL_MEM_READ_WRITE,
-            ImageFormat(CL_R, imageType),
-            size.x,
-            size.y,
-            size.z
-    );
-    ocl.GC.addMemObject(ry);
-    initKernel.setArg(0, *vectorField);
-    initKernel.setArg(1, fy);
-    initKernel.setArg(2, *ry);
-    initKernel.setArg(3, 2);
-    ocl.queue.enqueueNDRangeKernel(
-            initKernel,
-            NullRange,
-            NDRange(size.x,size.y,size.z),
-            NullRange
-    );
-    std::cout << "fy initialized" << std::endl;
-    // Y component
-    for(int i = 0; i < GVFIterations; i++) {
-        multigridVcycle(ocl,*ry,fy,sqrMag,0,v1,v2,l_max,MU,spacing,size,imageType);
-        ocl.queue.finish();
-    }
-    std::cout << "fy finished" << std::endl;
-
-    // delete ry
-    ocl.GC.deleteMemObject(ry);
-    // create fz and rz
-    Image3D fz = Image3D(
-            ocl.context,
-            CL_MEM_READ_WRITE,
-            ImageFormat(CL_R, imageType),
-            size.x,
-            size.y,
-            size.z
-    );
-    Image3D *rz = new Image3D(
-            ocl.context,
-            CL_MEM_READ_WRITE,
-            ImageFormat(CL_R, imageType),
-            size.x,
-            size.y,
-            size.z
-    );
-    ocl.GC.addMemObject(rz);
-    initKernel.setArg(0, *vectorField);
-    initKernel.setArg(1, fz);
-    initKernel.setArg(2, *rz);
-    initKernel.setArg(3, 3);
-    ocl.queue.enqueueNDRangeKernel(
-            initKernel,
-            NullRange,
-            NDRange(size.x,size.y,size.z),
-            NullRange
-    );
-    std::cout << "fz initialized" << std::endl;
-    ocl.GC.deleteMemObject(vectorField);
-    // Z component
-    for(int i = 0; i < GVFIterations; i++) {
-        multigridVcycle(ocl,*rz,fz,sqrMag,0,v1,v2,l_max,MU,spacing,size,imageType);
-        ocl.queue.finish();
-    }
-    std::cout << "fz finished" << std::endl;
-
-    // delete rz
-    ocl.GC.deleteMemObject(rz);
-
-
-    Image3D finalVectorField = Image3D(
-            ocl.context,
-            CL_MEM_READ_WRITE,
-            ImageFormat(CL_RGBA, imageType),
-            size.x,
-            size.y,
-            size.z
-    );
-    Kernel finalizeKernel = Kernel(ocl.program, "MGGVFFinish");
-    finalizeKernel.setArg(0, fx);
-    finalizeKernel.setArg(1, fy);
-    finalizeKernel.setArg(2, fz);
-    finalizeKernel.setArg(3, finalVectorField);
-    ocl.queue.enqueueNDRangeKernel(
-            finalizeKernel,
-            NullRange,
-            NDRange(size.x,size.y,size.z),
-            NullRange
-    );
-    std::cout << "MG GVF finished" << std::endl;
-
-
-    return finalVectorField;
-}
-*/
-
 Image3D computeNewResidual(
         OpenCL &ocl,
         Image3D &f,
@@ -720,10 +532,15 @@ Image3D fullMultigrid(
 
     for(int i = 0; i < v0; i++) {
         multigridVcycle(ocl,r_l,v_l,sqrMag,l,v1,v2,l_max,mu,spacing,size,imageType,bufferSize,no3Dwrite);
+        //ocl.queue.finish();
     }
 
     return v_l;
 
+}
+
+static int maxSize(SIPL::int3 &size) {
+    return std::max(size.x, std::max(size.y, size.z));
 }
 
 Image3D runFMGGVF(
@@ -748,10 +565,10 @@ Image3D runFMGGVF(
 
     Kernel initKernel = Kernel(ocl.program, "MGGVFInit");
 
-    int v0 = 1;
-    int v1 = 2;
-    int v2 = 2;
-    int l_max = 2; // TODO this should be calculated
+    int v0 = 1; // number of v cycles per iteration
+    int v1 = 2; // pre smoothing
+    int v2 = 1; // post smoothing. increasing this makes the result worse somehow...
+    int l_max = log(maxSize(size))/log(2) - 1;
     float spacing = 1.0f;
 
     // create sqrMag
@@ -1034,6 +851,7 @@ float calculateMaxResidual(SIPL::Volume<SIPL::float3>* vectorField,
         float mu
     ) {
     float maxResidual = -1;
+    float totalResidual = 0.0f;
 
     // Calculate initial vector field first
     SIPL::Volume<SIPL::float3> * initialVectorField = new SIPL::Volume<SIPL::float3>(v->getSize());
@@ -1062,6 +880,7 @@ float calculateMaxResidual(SIPL::Volume<SIPL::float3>* vectorField,
                 + vectorField->get(pos-SIPL::int3(0,1,0))
                 + vectorField->get(pos-SIPL::int3(0,0,1));
         SIPL::float3 residual = mu * laplacian - (f.x*f.x+f.y*f.y+f.z*f.z)*(v2-f);
+        totalResidual += residual.length();//fabs(residual.x)+fabs(residual.y)+fabs(residual.z);
         if(fabs(residual.x) > maxResidual) {
             maxResidual = fabs(residual.x);
         }
@@ -1073,5 +892,7 @@ float calculateMaxResidual(SIPL::Volume<SIPL::float3>* vectorField,
         }
     }}}
 
+    int size = (v->getWidth()-2)*(v->getHeight()-2)*(v->getDepth()-2);
+    //return totalResidual/size;
     return maxResidual;
 }
