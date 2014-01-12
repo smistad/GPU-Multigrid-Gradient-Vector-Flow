@@ -22,19 +22,28 @@
 #define STOP_TIMER(name)
 #endif
 
+#define MAX(a,b) a > b ? a : b
+
 int main(int argc, char ** argv) {
-    if(argc != 4) {
+    if(argc < 4) {
         std::cout << "Usage: " << argv[0] << " filename.mhd mu iterations" << std::endl;
         return 0;
     }
 
     const float mu = atof(argv[2]);
     const int iterations = atoi(argv[3]);
+    const bool use16bit = argc > 4 && std::string(argv[4]) == "--16bit";
+    if(use16bit) {
+        std::cout << "Using 16 bit storage format for the vector fields" << std::endl;
+    } else {
+        std::cout << "Using 32 bit storage format for the vector fields" << std::endl;
+    }
     INIT_TIMER
 
     // Load MHD volume specified in arguments using SIPL
     SIPL::Volume<float> * volume = new SIPL::Volume<float>(argv[1], SIPL::IntensityTransformation(SIPL::NORMALIZED));
     SIPL::int3 size = volume->getSize();
+    std::cout << "Loaded dataset of size " << size.x << ", " << size.y << ", " << size.z << std::endl;
 
     // Set up OpenCL
     OpenCL ocl;
@@ -57,7 +66,7 @@ int main(int argc, char ** argv) {
     );
 
     // Create vector field on the GPU
-    cl::Image3D vectorFieldGPU = createVectorField(ocl, volumeGPU, size);
+    cl::Image3D vectorFieldGPU = createVectorField(ocl, volumeGPU, size, use16bit);
 
     // Call the runFMGGVF method
     START_TIMER
@@ -68,13 +77,12 @@ int main(int argc, char ** argv) {
             iterations, // iterations
             mu, // mu
             false, // no 3D write
-            false // 16bit
+            use16bit // 16bit
     );
     STOP_TIMER("FMG GVF")
     
     // Transfer GVF vector field back to host
     const unsigned int totalSize = size.x*size.y*size.z;
-    float * temp = new float[totalSize*4];
 
     cl::size_t<3> origin;
     origin[0] = 0;
@@ -84,22 +92,43 @@ int main(int argc, char ** argv) {
     region[0] = size.x;
     region[1] = size.y;
     region[2] = size.z;
-    ocl.queue.enqueueReadImage(
-        resultGPU,
-        CL_TRUE,
-        origin,
-        region,
-        0,0,
-        temp
-    );
 
     SIPL::float3 * data = new SIPL::float3[totalSize];
-    for(int i = 0; i < totalSize; i++) {
-        data[i].x = temp[i*4];
-        data[i].y = temp[i*4+1];
-        data[i].z = temp[i*4+2];
+    if(use16bit) {
+        short * temp = new short[totalSize*4];
+        ocl.queue.enqueueReadImage(
+                resultGPU,
+                CL_TRUE,
+                origin,
+                region,
+                0,0,
+                temp
+            );
+
+            for(int i = 0; i < totalSize; i++) {
+                data[i].x = MAX(-1.0f, temp[i*4]/32767.0f);
+                data[i].y = MAX(-1.0f, temp[i*4+1]/32767.0f);
+                data[i].z = MAX(-1.0f, temp[i*4+2]/32767.0f);
+            }
+            delete[] temp;
+    } else {
+        float * temp = new float[totalSize*4];
+        ocl.queue.enqueueReadImage(
+            resultGPU,
+            CL_TRUE,
+            origin,
+            region,
+            0,0,
+            temp
+        );
+
+        for(int i = 0; i < totalSize; i++) {
+            data[i].x = temp[i*4];
+            data[i].y = temp[i*4+1];
+            data[i].z = temp[i*4+2];
+        }
+        delete[] temp;
     }
-    delete[] temp;
     SIPL::Volume<SIPL::float3> * result = new SIPL::Volume<SIPL::float3>(size);
     result->setData(data);
 

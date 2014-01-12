@@ -825,11 +825,17 @@ Image3D runFMGGVF(
     return finalVectorField;
 }
 
-Image3D createVectorField(OpenCL &ocl, Image3D volume, SIPL::int3 &size) {
+Image3D createVectorField(OpenCL &ocl, Image3D volume, SIPL::int3 &size, const bool use16bit) {
+    cl_channel_type type;
+    if(use16bit) {
+        type = CL_SNORM_INT16;
+    } else {
+        type = CL_FLOAT;
+    }
     Image3D result = Image3D(
         ocl.context,
         CL_MEM_READ_WRITE,
-        ImageFormat(CL_RGBA, CL_FLOAT),
+        ImageFormat(CL_RGBA, type),
         size.x, size.y, size.z
     );
 

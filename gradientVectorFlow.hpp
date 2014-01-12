@@ -3,7 +3,7 @@
 #include "SIPL/Core.hpp"
 #include "OpenCLUtilities/openCLUtilities.hpp"
 
-cl::Image3D createVectorField(OpenCL &ocl, cl::Image3D volume, SIPL::int3 &size);
+cl::Image3D createVectorField(OpenCL &ocl, cl::Image3D volume, SIPL::int3 &size, const bool use16bit);
 
 cl::Image3D runFMGGVF(
         OpenCL &ocl,
