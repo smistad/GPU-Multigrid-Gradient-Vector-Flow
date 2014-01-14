@@ -52,7 +52,16 @@ int main(int argc, char ** argv) {
     std::cout << "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << std::endl;
     ocl.device = devices[0];
     ocl.queue = cl::CommandQueue(ocl.context, ocl.device);
-    std::string filename = std::string(KERNELS_DIR) + std::string("3Dkernels.cl");
+    std::string filename;
+    bool no3Dwrite;
+    if((int)devices[0].getInfo<CL_DEVICE_EXTENSIONS>().find("cl_khr_3d_image_writes") > -1) {
+        filename = std::string(KERNELS_DIR) + std::string("3Dkernels.cl");
+        no3Dwrite = false;
+    } else {
+        std::cout << "This device doesn't support writing to 3D textures. Using buffers instead. 16bit storage format is also disabled." << std::endl;
+        filename = std::string(KERNELS_DIR) + std::string("3Dkernels_no_3d_write.cl");
+        no3Dwrite = true;
+    }
     ocl.program = buildProgramFromSource(ocl.context, filename);
 
     // Create texture on GPU and transfer
@@ -66,7 +75,7 @@ int main(int argc, char ** argv) {
     );
 
     // Create vector field on the GPU
-    cl::Image3D vectorFieldGPU = createVectorField(ocl, volumeGPU, size, use16bit);
+    cl::Image3D vectorFieldGPU = createVectorField(ocl, volumeGPU, size, no3Dwrite, use16bit);
 
     // Call the runFMGGVF method
     START_TIMER
@@ -76,7 +85,7 @@ int main(int argc, char ** argv) {
             size,
             iterations, // iterations
             mu, // mu
-            false, // no 3D write
+            no3Dwrite, // no 3D write
             use16bit // 16bit
     );
     STOP_TIMER("FMG GVF")
@@ -106,9 +115,9 @@ int main(int argc, char ** argv) {
             );
 
             for(int i = 0; i < totalSize; i++) {
-                data[i].x = MAX(-1.0f, temp[i*4]/32767.0f);
-                data[i].y = MAX(-1.0f, temp[i*4+1]/32767.0f);
-                data[i].z = MAX(-1.0f, temp[i*4+2]/32767.0f);
+                data[i].x = MAX(-1.0f, (float)temp[i*4]/32767.0f);
+                data[i].y = MAX(-1.0f, (float)temp[i*4+1]/32767.0f);
+                data[i].z = MAX(-1.0f, (float)temp[i*4+2]/32767.0f);
             }
             delete[] temp;
     } else {
@@ -132,20 +141,21 @@ int main(int argc, char ** argv) {
     SIPL::Volume<SIPL::float3> * result = new SIPL::Volume<SIPL::float3>(size);
     result->setData(data);
 
-    std::cout << "Maximum magnitude of residuals was: " << calculateMaxResidual(result, volume, mu) << std::endl;
+    ErrorMeasurements e = calculateMaxResidual(result, volume, mu);
+    std::cout << "Maximum magnitude of residuals was: " << e.maxError << std::endl;
+    std::cout << "Average error was: " << e.averageError << std::endl;
     delete volume;
 
     // Display using OpenCL
-    result->display(0.0, 0.1);
+    //result->display(0.0, 0.1);
     
     // Create magnitude image and display it
     SIPL::Volume<float> * magnitude = new SIPL::Volume<float>(size);
     for(int i = 0; i < magnitude->getTotalSize(); i++)
         magnitude->set(i, result->get(i).length());
-    magnitude->display();
+    //magnitude->display();
 
     // TODO: create 2D version?
-    // TODO: 16 bit support
     // TODO: work-group sizes
     // TODO: no 3d write
 }

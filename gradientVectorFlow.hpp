@@ -3,7 +3,7 @@
 #include "SIPL/Core.hpp"
 #include "OpenCLUtilities/openCLUtilities.hpp"
 
-cl::Image3D createVectorField(OpenCL &ocl, cl::Image3D volume, SIPL::int3 &size, const bool use16bit);
+cl::Image3D createVectorField(OpenCL &ocl, cl::Image3D volume, SIPL::int3 &size, const bool no3Dwrite, const bool use16bit);
 
 cl::Image3D runFMGGVF(
         OpenCL &ocl,
@@ -15,8 +15,13 @@ cl::Image3D runFMGGVF(
         const bool use16bit
 );
 
+class ErrorMeasurements {
+    public:
+        float averageError;
+        float maxError;
+};
 
-float calculateMaxResidual(SIPL::Volume<SIPL::float3>* vectorField,
+ErrorMeasurements calculateMaxResidual(SIPL::Volume<SIPL::float3>* vectorField,
         SIPL::Volume<float>* volume,
         float mu);
 #endif

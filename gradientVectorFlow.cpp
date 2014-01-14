@@ -568,7 +568,7 @@ Image3D runFMGGVF(
     int v0 = 1; // number of v cycles per iteration
     int v1 = 2; // pre smoothing
     int v2 = 1; // post smoothing. increasing this makes the result worse somehow...
-    int l_max = log(maxSize(size))/log(2) - 1;
+    int l_max = log(maxSize(size))/log(2) - 2; // log - 1 gives error on 32 bit. Why??
     float spacing = 1.0f;
 
     // create sqrMag
@@ -825,12 +825,15 @@ Image3D runFMGGVF(
     return finalVectorField;
 }
 
-Image3D createVectorField(OpenCL &ocl, Image3D volume, SIPL::int3 &size, const bool use16bit) {
+Image3D createVectorField(OpenCL &ocl, Image3D volume, SIPL::int3 &size, const bool no3Dwrite, const bool use16bit) {
     cl_channel_type type;
+    int bufferTypeSize;
     if(use16bit) {
         type = CL_SNORM_INT16;
+        bufferTypeSize = sizeof(short);
     } else {
         type = CL_FLOAT;
+        bufferTypeSize = sizeof(float);
     }
     Image3D result = Image3D(
         ocl.context,
@@ -840,19 +843,41 @@ Image3D createVectorField(OpenCL &ocl, Image3D volume, SIPL::int3 &size, const b
     );
 
     Kernel kernel = Kernel(ocl.program, "createVectorField");
+
     kernel.setArg(0, volume);
-    kernel.setArg(1, result);
-    ocl.queue.enqueueNDRangeKernel(
-            kernel,
-            NullRange,
-            NDRange(size.x,size.y,size.z),
-            NDRange(4,4,4)
-    );
+
+    if(no3Dwrite) {
+        Buffer buffer = Buffer(ocl.context, CL_MEM_WRITE_ONLY, sizeof(bufferTypeSize)*size.x*size.y*size.z*4);
+        kernel.setArg(1, buffer);
+        ocl.queue.enqueueNDRangeKernel(
+                kernel,
+                NullRange,
+                NDRange(size.x,size.y,size.z),
+                NDRange(4,4,4)
+        );
+        cl::size_t<3> origin;
+        origin[0] = 0;
+        origin[1] = 0;
+        origin[2] = 0;
+        cl::size_t<3> region;
+        region[0] = size.x;
+        region[1] = size.y;
+        region[2] = size.z;
+        ocl.queue.enqueueCopyBufferToImage(buffer, result, 0, origin, region);
+    } else {
+        kernel.setArg(1, result);
+        ocl.queue.enqueueNDRangeKernel(
+                kernel,
+                NullRange,
+                NDRange(size.x,size.y,size.z),
+                NDRange(4,4,4)
+        );
+    }
 
     return result;
 }
 
-float calculateMaxResidual(SIPL::Volume<SIPL::float3>* vectorField,
+ErrorMeasurements calculateMaxResidual(SIPL::Volume<SIPL::float3>* vectorField,
         SIPL::Volume<float> * v,
         float mu
     ) {
@@ -899,6 +924,9 @@ float calculateMaxResidual(SIPL::Volume<SIPL::float3>* vectorField,
     }}}
 
     int size = (v->getWidth()-2)*(v->getHeight()-2)*(v->getDepth()-2);
-    //return totalResidual/size;
-    return maxResidual;
+    ErrorMeasurements e;
+    e.maxError = maxResidual;
+    e.averageError = totalResidual/size;
+
+    return e;
 }
