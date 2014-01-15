@@ -563,8 +563,6 @@ Image3D runFMGGVF(
         bufferTypeSize = sizeof(float);
     }
 
-    Kernel initKernel = Kernel(ocl.program, "MGGVFInit");
-
     int v0 = 1; // number of v cycles per iteration
     int v1 = 2; // pre smoothing
     int v2 = 1; // post smoothing. increasing this makes the result worse somehow...

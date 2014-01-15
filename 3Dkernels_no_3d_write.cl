@@ -137,33 +137,6 @@ __kernel void createSqrMag(
     sqrMag[LPOS(pos)] = FLOAT_TO_SNORM16(mag);
 }
 
-__kernel void MGGVFInit(
-        __read_only image3d_t vectorField,
-        __global VECTOR_FIELD_TYPE * f,
-        __global VECTOR_FIELD_TYPE * r,
-        __private int component
-        ) {
-
-    const int4 pos = {get_global_id(0), get_global_id(1), get_global_id(2), 0};
-
-    const float4 v = read_imagef(vectorField, sampler, pos);
-    const float sqrMag = v.x*v.x+v.y*v.y+v.z*v.z;
-    float f_value, r_value;
-    if(component == 1) {
-        f_value = v.x;
-        r_value = -v.x*sqrMag;
-    } else if(component == 2) {
-        f_value = v.y;
-        r_value = -v.y*sqrMag;
-    } else {
-        f_value = v.z;
-        r_value = -v.z*sqrMag;
-    }
-
-    f[LPOS(pos)] = FLOAT_TO_SNORM16(f_value);
-    r[LPOS(pos)] = FLOAT_TO_SNORM16(r_value);
-}
-
 __kernel void MGGVFFinish(
         __read_only image3d_t fx,
         __read_only image3d_t fy,
