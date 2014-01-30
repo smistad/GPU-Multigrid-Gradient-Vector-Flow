@@ -1,5 +1,4 @@
 #include "SIPL/Core.hpp"
-#include "OpenCLUtilities/openCLUtilities.hpp"
 #include "gradientVectorFlow.hpp"
 
 #ifndef KERNELS_DIR
@@ -23,6 +22,7 @@
 #endif
 
 #define MAX(a,b) a > b ? a : b
+
 
 int main(int argc, char ** argv) {
     if(argc < 4) {
@@ -50,17 +50,18 @@ int main(int argc, char ** argv) {
         std::cout << "Loaded dataset of size " << size.x << ", " << size.y << ", " << size.z << std::endl;
 
     // Set up OpenCL
-    OpenCL ocl;
+    oul::OpenCLManager * manager = oul::OpenCLManager::getInstance();
+    manager->setDebugMode(true);
     //try {
-    ocl.context = createCLContextFromArguments(argc, argv);
-    VECTOR_CLASS<cl::Device> devices = ocl.context.getInfo<CL_CONTEXT_DEVICES>();
+    oul::DeviceCriteria defaultCriteria;
+    defaultCriteria.setTypeCriteria(oul::DEVICE_TYPE_GPU);
+    defaultCriteria.setDeviceCountCriteria(1);
+    oul::Context context = manager->createContext(defaultCriteria);
     if(!printOutForPlotting)
-        std::cout << "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << std::endl;
-    ocl.device = devices[0];
-    ocl.queue = cl::CommandQueue(ocl.context, ocl.device);
+        std::cout << "Using device: " << context.getDevice(0).getInfo<CL_DEVICE_NAME>() << std::endl;
     std::string filename;
     bool no3Dwrite;
-    if((int)devices[0].getInfo<CL_DEVICE_EXTENSIONS>().find("cl_khr_3d_image_writes") > -1) {
+    if((int)context.getDevice(0).getInfo<CL_DEVICE_EXTENSIONS>().find("cl_khr_3d_image_writes") > -1) {
         filename = std::string(KERNELS_DIR) + std::string("3Dkernels.cl");
         no3Dwrite = false;
     } else {
@@ -69,17 +70,22 @@ int main(int argc, char ** argv) {
         filename = std::string(KERNELS_DIR) + std::string("3Dkernels_no_3d_write.cl");
         no3Dwrite = true;
     }
-    ocl.program = buildProgramFromSource(ocl.context, filename);
+    context.createProgramFromSource(filename);
 
     // Create texture on GPU and transfer
     cl::Image3D volumeGPU = cl::Image3D(
-            ocl.context,
+            context.getContext(),
             CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
             cl::ImageFormat(CL_R, CL_FLOAT),
             size.x, size.y, size.z,
             0, 0,
             (float *)volume->getData()
     );
+
+    OpenCL ocl;
+    ocl.context = context.getContext();
+    ocl.program = context.getProgram(0);
+    ocl.queue = context.getQueue(0);
 
     // Create vector field on the GPU
     cl::Image3D vectorFieldGPU = createVectorField(ocl, volumeGPU, size, no3Dwrite, use16bit);
@@ -100,7 +106,7 @@ int main(int argc, char ** argv) {
     } else {
         STOP_TIMER("FMG GVF")
     }
-    
+
     // Transfer GVF vector field back to host
     const unsigned int totalSize = size.x*size.y*size.z;
 
@@ -116,7 +122,7 @@ int main(int argc, char ** argv) {
     SIPL::float3 * data = new SIPL::float3[totalSize];
     if(use16bit) {
         short * temp = new short[totalSize*4];
-        ocl.queue.enqueueReadImage(
+        context.getQueue(0).enqueueReadImage(
                 resultGPU,
                 CL_TRUE,
                 origin,
@@ -133,7 +139,7 @@ int main(int argc, char ** argv) {
             delete[] temp;
     } else {
         float * temp = new float[totalSize*4];
-        ocl.queue.enqueueReadImage(
+        context.getQueue(0).enqueueReadImage(
             resultGPU,
             CL_TRUE,
             origin,
@@ -164,7 +170,7 @@ int main(int argc, char ** argv) {
     // Display using OpenCL
     if(!printOutForPlotting)
         result->display(0.0, 0.1);
-    
+
     // Create magnitude image and display it
     if(!printOutForPlotting) {
         SIPL::Volume<float> * magnitude = new SIPL::Volume<float>(size);

@@ -1,8 +1,12 @@
 #ifndef GVF_H
 #define GVF_H
 #include "SIPL/Core.hpp"
-#include "OpenCLUtilities/openCLUtilities.hpp"
-
+#include "OpenCLUtilityLibrary/OpenCLManager.hpp"
+typedef struct OpenCL {
+        cl::Context context;
+        cl::Program program;
+        cl::CommandQueue queue;
+} OpenCL;
 cl::Image3D createVectorField(OpenCL &ocl, cl::Image3D volume, SIPL::int3 &size, const bool no3Dwrite, const bool use16bit);
 
 cl::Image3D runFMGGVF(
