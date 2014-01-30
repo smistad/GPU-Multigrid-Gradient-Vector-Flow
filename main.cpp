@@ -30,26 +30,32 @@ int main(int argc, char ** argv) {
         return 0;
     }
 
+    const bool printOutForPlotting = false;
     const float mu = atof(argv[2]);
     const int iterations = atoi(argv[3]);
     const bool use16bit = argc > 4 && std::string(argv[4]) == "--16bit";
-    if(use16bit) {
-        std::cout << "Using 16 bit storage format for the vector fields" << std::endl;
-    } else {
-        std::cout << "Using 32 bit storage format for the vector fields" << std::endl;
+    if(!printOutForPlotting) {
+        if(use16bit) {
+            std::cout << "Using 16 bit storage format for the vector fields" << std::endl;
+        } else {
+            std::cout << "Using 32 bit storage format for the vector fields" << std::endl;
+        }
     }
     INIT_TIMER
 
     // Load MHD volume specified in arguments using SIPL
     SIPL::Volume<float> * volume = new SIPL::Volume<float>(argv[1], SIPL::IntensityTransformation(SIPL::NORMALIZED));
     SIPL::int3 size = volume->getSize();
-    std::cout << "Loaded dataset of size " << size.x << ", " << size.y << ", " << size.z << std::endl;
+    if(!printOutForPlotting)
+        std::cout << "Loaded dataset of size " << size.x << ", " << size.y << ", " << size.z << std::endl;
 
     // Set up OpenCL
     OpenCL ocl;
+    //try {
     ocl.context = createCLContextFromArguments(argc, argv);
     VECTOR_CLASS<cl::Device> devices = ocl.context.getInfo<CL_CONTEXT_DEVICES>();
-    std::cout << "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << std::endl;
+    if(!printOutForPlotting)
+        std::cout << "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << std::endl;
     ocl.device = devices[0];
     ocl.queue = cl::CommandQueue(ocl.context, ocl.device);
     std::string filename;
@@ -58,7 +64,8 @@ int main(int argc, char ** argv) {
         filename = std::string(KERNELS_DIR) + std::string("3Dkernels.cl");
         no3Dwrite = false;
     } else {
-        std::cout << "This device doesn't support writing to 3D textures. Using buffers instead. 16bit storage format is also disabled." << std::endl;
+        if(!printOutForPlotting)
+            std::cout << "This device doesn't support writing to 3D textures. Using buffers instead. 16bit storage format is also disabled." << std::endl;
         filename = std::string(KERNELS_DIR) + std::string("3Dkernels_no_3d_write.cl");
         no3Dwrite = true;
     }
@@ -88,7 +95,11 @@ int main(int argc, char ** argv) {
             no3Dwrite, // no 3D write
             use16bit // 16bit
     );
-    STOP_TIMER("FMG GVF")
+    if(printOutForPlotting) {
+        std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()-start).count() << ";";
+    } else {
+        STOP_TIMER("FMG GVF")
+    }
     
     // Transfer GVF vector field back to host
     const unsigned int totalSize = size.x*size.y*size.z;
@@ -142,18 +153,34 @@ int main(int argc, char ** argv) {
     result->setData(data);
 
     ErrorMeasurements e = calculateMaxResidual(result, volume, mu);
-    std::cout << "Maximum magnitude of residuals was: " << e.maxError << std::endl;
-    std::cout << "Average error was: " << e.averageError << std::endl;
+    if(printOutForPlotting) {
+        std::cout << e.averageError << std::endl;
+    } else {
+        std::cout << "Maximum magnitude of residuals was: " << e.maxError << std::endl;
+        std::cout << "Average error was: " << e.averageError << std::endl;
+    }
     delete volume;
 
     // Display using OpenCL
-    //result->display(0.0, 0.1);
+    if(!printOutForPlotting)
+        result->display(0.0, 0.1);
     
     // Create magnitude image and display it
-    SIPL::Volume<float> * magnitude = new SIPL::Volume<float>(size);
-    for(int i = 0; i < magnitude->getTotalSize(); i++)
-        magnitude->set(i, result->get(i).length());
-    //magnitude->display();
+    if(!printOutForPlotting) {
+        SIPL::Volume<float> * magnitude = new SIPL::Volume<float>(size);
+        for(int i = 0; i < magnitude->getTotalSize(); i++)
+            magnitude->set(i, result->get(i).length());
+        magnitude->display();
+    }
+    /*
+    } catch(cl::Error &error) {
+        std::cout << "An OpenCL error occured!" << std::endl;
+        std::cout << "Error message: " << getCLErrorString(error.err()) << std::endl;
+        std::cout << "What caused the error: " << error.what() << std::endl;
+        std::cout << "Error code: " << (int)error.err() << std::endl;
+        std::cout << "Aborting due to error." << std::endl;
+    }
+    */
 
     // TODO: create 2D version?
     // TODO: work-group sizes
