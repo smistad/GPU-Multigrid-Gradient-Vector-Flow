@@ -1,4 +1,5 @@
 #include "gradientVectorFlow.hpp"
+#include "OpenCLUtilityLibrary/HelperFunctions.hpp"
 #include <cmath>
 using namespace cl;
 
@@ -22,14 +23,8 @@ Image3D initSolutionToZero(OpenCL &ocl, SIPL::int3 size, int imageType, int buff
                 NDRange(size.x*size.y*size.z),
                 NullRange
         );
-		cl::size_t<3> offset;
-		offset[0] = 0;
-		offset[1] = 0;
-		offset[2] = 0;
-		cl::size_t<3> region;
-		region[0] = size.x;
-		region[1] = size.y;
-		region[2] = size.z;
+		cl::size_t<3> offset = oul::createOrigoRegion();
+		cl::size_t<3> region = oul::createRegion(size.x,size.y,size.z);
         ocl.queue.enqueueCopyBufferToImage(vBuffer,v,0,offset,region);
     } else {
         Kernel initToZeroKernel(ocl.program, "init3DFloat");
