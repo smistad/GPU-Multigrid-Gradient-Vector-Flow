@@ -5,7 +5,8 @@ add_subdirectory(SIPL)
 include_directories(${SIPL_INCLUDE_DIRS})
 
 add_subdirectory(OpenCLUtilityLibrary)
-include_directories(${OpenCLUtilityLibrary_INCLUDE_DIRS})
+find_package(OpenCLUtilityLibrary PATHS "${GPU-Multigrid-GVF_BINARY_DIR}/OpenCLUtilityLibrary" REQUIRED)
+include(${OpenCLUtilityLibrary_USE_FILE})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++0x -O3 -DKERNELS_DIR=\\\"${PROJECT_SOURCE_DIR}/\\\"")
 
